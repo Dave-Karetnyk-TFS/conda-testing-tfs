@@ -10,6 +10,7 @@
     * Conda-pack being used from the selected Conda env, e.g. conda_pack_060_1.
     * Conda being used from the base env, so whatever version is installed there.
     * Conda must be activated in the current PowerShell session before running this script.
+    * 7z.exe needed -> e.g. install via Scoop.
  
     .PARAMETER packEnv
     The conda-pack environment to use. Must be one of: conda_pack_060_1, conda_pack_081_1,
@@ -31,7 +32,7 @@ param(
     [ValidateSet("conda_pack_060_1", "conda_pack_081_1", "conda_pack_081a_1")]
     [string]$packEnv
 )
-$prefix = 'Set-PythonEnv:'
+$prefix = 'Test-CondaPack:'
 
 Write-Host "$prefix start script..."
 Write-Host "$prefix using conda-pack environment: $packEnv"
@@ -100,8 +101,9 @@ conda deactivate
 # Conda-pack adds its own activation script to the archive, which would result in two activate.bat
 # scripts being present in the archive. This may cause issues when extracting, so exclude the env
 # one. E.g. a warning message on stderr during zip packaging -> tripping up FDT tools on Jenkins.
+$outputZip = "$PSScriptRoot\$sourceEnv.zip"
 conda activate $packEnv
-conda-pack --name $sourceEnv --format zip --exclude Scripts/activate.bat
+conda-pack --name $sourceEnv --format zip --output=$outputZip --exclude Scripts/activate.bat
 if ($LASTEXITCODE -ne 0) {
     Write-Host -ForegroundColor Red "$prefix failed to pack conda env: $sourceEnv"
     Exit 5
@@ -146,7 +148,7 @@ conda deactivate
 
 Write-Host "$prefix testing conda-hook.ps1 for extended path format issue..."
 conda activate $sourceEnv
-python ./check_env_files.py $targetEnvDir
+python "$PSScriptRoot\check_env_files.py" $targetEnvDir
 if ($LASTEXITCODE -ne 0) { 
     conda deactivate
     Write-Host -ForegroundColor Red "$prefix ERROR: found extended path format issue/s"
